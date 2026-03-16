@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pa4-dashboard"
 version = "0.1.0"
-description = "CS 2850 PA4 – Crypto Market Dashboard using CoinGecko API and Streamlit"
+description = "L22 Homework - Streamlit Dashboard – Crypto Market Dashboard using CoinGecko API and Streamlit"
 authors = ["Daniela Brittp"]
 package-mode = false
  
