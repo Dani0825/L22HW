@@ -1,0 +1,12 @@
+[project]
+name = "pa4-dashboard"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "CS 2850 PA4 – Crypto Market Dashboard using CoinGecko API and Streamlit"
+
+dependencies = [
+    "streamlit>=1.30",
+    "pandas>=2.0",
+    "requests>=2.31",
+    "plotly>=5.0",
+]
