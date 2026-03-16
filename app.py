@@ -1,17 +1,13 @@
-# Student Name: [Your Name]
-# Student ID: [Your Student ID]
-# Course: CS 2850 – Intermediate Python Programming
-# Assignment: PA4 – Streamlit Interactive Dashboard
-# AI Assistance: Claude (Anthropic) helped scaffold the code structure and plotly chart syntax.
-#               All design choices, component selection, and dashboard logic are my own.
-
+# Student Name: Daniela Huber
+# Student ID: U0000022710
+ 
 import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-
+ 
 # ─────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────
@@ -20,7 +16,7 @@ st.set_page_config(
     page_icon="📈",
     layout="wide",
 )
-
+ 
 # ─────────────────────────────────────────────
 # CUSTOM CSS
 # ─────────────────────────────────────────────
@@ -41,15 +37,21 @@ st.markdown("""
     .stDataFrame { border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
-
+ 
 # ─────────────────────────────────────────────
 # API HELPERS  (all wrapped with @st.cache_data)
 # ─────────────────────────────────────────────
-
+ 
 BASE_URL = "https://api.coingecko.com/api/v3"
-
-
-@st.cache_data(ttl=300)
+ 
+# Headers help avoid being flagged as a bot by CoinGecko's rate limiter
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; PA4Dashboard/1.0)",
+    "Accept": "application/json",
+}
+ 
+ 
+@st.cache_data(ttl=600)
 def fetch_markets(vs_currency: str, per_page: int) -> pd.DataFrame:
     """Fetch top N coins by market cap from CoinGecko /coins/markets."""
     url = f"{BASE_URL}/coins/markets"
@@ -62,7 +64,7 @@ def fetch_markets(vs_currency: str, per_page: int) -> pd.DataFrame:
         "price_change_percentage": "24h,7d",
     }
     try:
-        resp = requests.get(url, params=params, timeout=10)
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         df = pd.DataFrame(data)
@@ -80,15 +82,15 @@ def fetch_markets(vs_currency: str, per_page: int) -> pd.DataFrame:
     except requests.exceptions.RequestException as e:
         st.error(f"⚠️ Failed to fetch market data: {e}")
         return pd.DataFrame()
-
-
-@st.cache_data(ttl=300)
+ 
+ 
+@st.cache_data(ttl=600)
 def fetch_price_history(coin_id: str, vs_currency: str, days: int) -> pd.DataFrame:
     """Fetch historical price data for a single coin."""
     url = f"{BASE_URL}/coins/{coin_id}/market_chart"
     params = {"vs_currency": vs_currency, "days": days}
     try:
-        resp = requests.get(url, params=params, timeout=10)
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         prices = data.get("prices", [])
@@ -99,28 +101,28 @@ def fetch_price_history(coin_id: str, vs_currency: str, days: int) -> pd.DataFra
     except requests.exceptions.RequestException as e:
         st.error(f"⚠️ Failed to fetch price history for {coin_id}: {e}")
         return pd.DataFrame()
-
-
-@st.cache_data(ttl=300)
+ 
+ 
+@st.cache_data(ttl=600)
 def fetch_global() -> dict:
     """Fetch global crypto market stats."""
     url = f"{BASE_URL}/global"
     try:
-        resp = requests.get(url, timeout=10)
+        resp = requests.get(url, headers=HEADERS, timeout=10)
         resp.raise_for_status()
         return resp.json().get("data", {})
     except requests.exceptions.RequestException as e:
         st.error(f"⚠️ Failed to fetch global data: {e}")
         return {}
-
-
+ 
+ 
 # ─────────────────────────────────────────────
 # SIDEBAR – User Inputs
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.title("⚙️ Dashboard Controls")
     st.markdown("---")
-
+ 
     # Widget 1 – Currency selector
     currency = st.selectbox(
         "Display currency",
@@ -128,7 +130,7 @@ with st.sidebar:
         index=0,
         format_func=lambda x: x.upper(),
     )
-
+ 
     # Widget 2 – Number of top coins
     top_n = st.slider(
         "Number of top coins",
@@ -137,7 +139,7 @@ with st.sidebar:
         value=15,
         step=5,
     )
-
+ 
     # Widget 3 – History window for the time series chart
     days_map = {"24 hours": 1, "7 days": 7, "30 days": 30, "90 days": 90}
     days_label = st.radio(
@@ -146,37 +148,37 @@ with st.sidebar:
         index=2,
     )
     days = days_map[days_label]
-
+ 
     st.markdown("---")
     st.caption("Data provided by [CoinGecko](https://www.coingecko.com) · refreshes every 5 min")
-
+ 
 # ─────────────────────────────────────────────
 # LOAD DATA
 # ─────────────────────────────────────────────
 currency_sym = {"usd": "$", "eur": "€", "gbp": "£", "jpy": "¥", "btc": "₿"}.get(currency, currency.upper())
-
+ 
 df_markets = fetch_markets(currency, top_n)
 global_data = fetch_global()
-
+ 
 # ─────────────────────────────────────────────
 # HEADER
 # ─────────────────────────────────────────────
 st.title("📈 Crypto Market Dashboard")
 st.markdown(f"Live overview of the top **{top_n}** cryptocurrencies · prices in **{currency.upper()}** · updated every 5 min")
 st.markdown("---")
-
+ 
 # ─────────────────────────────────────────────
 # COMPONENT 1 – Global KPI Metrics  (st.metric)
 # ─────────────────────────────────────────────
 st.subheader("🌐 Global Market Snapshot")
-
+ 
 if global_data:
     total_mcap = global_data.get("total_market_cap", {}).get(currency, 0)
     total_vol = global_data.get("total_volume", {}).get(currency, 0)
     btc_dom = global_data.get("market_cap_percentage", {}).get("btc", 0)
     active_coins = global_data.get("active_cryptocurrencies", 0)
     mcap_change = global_data.get("market_cap_change_percentage_24h_usd", 0)
-
+ 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric(
         "Total Market Cap",
@@ -195,14 +197,14 @@ if global_data:
         "Active Coins",
         f"{active_coins:,}",
     )
-
+ 
 st.markdown("---")
-
+ 
 # ─────────────────────────────────────────────
 # COMPONENT 2 – Time Series Chart  (Plotly)
 # ─────────────────────────────────────────────
 st.subheader(f"📉 Price History – {days_label}")
-
+ 
 if not df_markets.empty:
     # Let the user pick which coin to chart
     coin_options = df_markets["id"].tolist()
@@ -212,9 +214,9 @@ if not df_markets.empty:
         options=coin_options,
         format_func=lambda x: coin_names.get(x, x).title(),
     )
-
+ 
     df_history = fetch_price_history(selected_coin, currency, days)
-
+ 
     if not df_history.empty:
         fig_ts = go.Figure()
         fig_ts.add_trace(go.Scatter(
@@ -238,21 +240,21 @@ if not df_markets.empty:
         st.plotly_chart(fig_ts, use_container_width=True)
     else:
         st.warning("No price history data available for the selected coin.")
-
+ 
 st.markdown("---")
-
+ 
 # ─────────────────────────────────────────────
 # COMPONENT 3 – Bar Chart: Top Coins by Market Cap
 # ─────────────────────────────────────────────
 st.subheader(f"🏆 Top {top_n} Coins by Market Cap")
-
+ 
 if not df_markets.empty:
     df_bar = df_markets.copy()
     df_bar["market_cap_B"] = df_bar["market_cap"] / 1e9
     df_bar["color"] = df_bar["price_change_percentage_24h"].apply(
         lambda x: "#3fb950" if (x or 0) >= 0 else "#f85149"
     )
-
+ 
     fig_bar = go.Figure(go.Bar(
         x=df_bar["symbol"],
         y=df_bar["market_cap_B"],
@@ -271,14 +273,14 @@ if not df_markets.empty:
         height=400,
     )
     st.plotly_chart(fig_bar, use_container_width=True)
-
+ 
 st.markdown("---")
-
+ 
 # ─────────────────────────────────────────────
 # COMPONENT 4 – Data Table with styled 24h change
 # ─────────────────────────────────────────────
 st.subheader("📋 Market Data Table")
-
+ 
 if not df_markets.empty:
     df_display = df_markets[[
         "symbol", "name", "current_price",
@@ -287,24 +289,24 @@ if not df_markets.empty:
         "price_change_percentage_7d_in_currency",
         "high_24h", "low_24h",
     ]].copy()
-
+ 
     df_display.columns = [
         "Symbol", "Name", f"Price ({currency_sym})",
         "Market Cap", "24h Volume",
         "24h Change %", "7d Change %",
         f"24h High ({currency_sym})", f"24h Low ({currency_sym})",
     ]
-
+ 
     # Format numeric columns for readability
     df_display["Market Cap"]   = df_display["Market Cap"].apply(lambda v: f"{currency_sym}{v/1e9:.2f}B")
     df_display["24h Volume"]   = df_display["24h Volume"].apply(lambda v: f"{currency_sym}{v/1e9:.2f}B")
-
+ 
     def color_change(val):
         if pd.isna(val):
             return ""
         color = "#3fb950" if val >= 0 else "#f85149"
         return f"color: {color}"
-
+ 
     styled = df_display.style.applymap(color_change, subset=["24h Change %", "7d Change %"]) \
                               .format({
                                   f"Price ({currency_sym})": lambda v: f"{currency_sym}{v:,.4f}",
@@ -313,9 +315,9 @@ if not df_markets.empty:
                                   f"24h High ({currency_sym})": lambda v: f"{currency_sym}{v:,.4f}",
                                   f"24h Low ({currency_sym})": lambda v: f"{currency_sym}{v:,.4f}",
                               })
-
+ 
     st.dataframe(styled, use_container_width=True, hide_index=True)
-
+ 
 # ─────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────
